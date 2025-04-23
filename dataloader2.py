@@ -31,7 +31,7 @@ class LAHeart(Dataset):
 
     def __getitem__(self, idx):
         image_name = self.sample_list[idx]
-        path = os.path.join("./data/{}/mri_norm2.h5".format(image_name))
+        path = os.path.join("/content/drive/MyDrive/newdataset/Dataset/Training Set/{}/mri_norm2.h5".format(image_name))
         h5f = h5py.File(path, 'r')
         image = h5f['image'][:]
         label = h5f['label'][:]
