@@ -131,3 +131,19 @@ class CreateOnehotLabel(object):
         for i in range(self.num_classes):
             onehot_label[0, i, :, :, :] = (label[0][i] == i).astype(np.float32)
         return torch.from_numpy(onehot_label)
+    
+
+def main():
+    # Initialize dataset
+    dataset = LAHeart(root="/content/drive/MyDrive/newdataset/csv_data", split="labelled_train", num=10)
+
+    # Print dataset size (number of samples)
+    print(f"Dataset size: {len(dataset)}")
+
+    # Get a sample item and print its shape
+    sample = dataset[0]
+    print("Sample image shape:", sample['image'].shape)
+    print("Sample label shape:", sample['label'].shape)
+
+if __name__ == "__main__":
+    main()
