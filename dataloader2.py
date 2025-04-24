@@ -91,6 +91,7 @@ class RandomRotFlip:
 
 
 
+
 class RandomNoise(object):
     def __init__(self, mu=0, sigma=0.1):
         self.mu = mu
@@ -109,6 +110,7 @@ class ToTensor:
         image = torch.from_numpy(image.copy()).float().unsqueeze(0)
         label = torch.from_numpy(label.copy()).long()
         return {'image': image, 'label': label}
+
 
 
 class CreateOnehotLabel(object):
