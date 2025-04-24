@@ -14,7 +14,7 @@ def read_h5(path):
 
 class LAHeart(torch.utils.data.Dataset):
     def __init__(self, split='Training Set',label = True, transform=None):
-        self.base_dir = f'./{split}/'
+        self.base_dir = f'/content/drive/MyDrive/Code_SSL/{split}/'
         self.label = label
         self.split = split
         self.path_list = os.listdir(self.base_dir)
