@@ -44,13 +44,7 @@ class LAHeart(Dataset):
         return sample
 
 
-class RandomCrop(object):
-    """
-    Crop randomly the image in a sample
-    Args:
-    output_size (int): Desired output size
-    """
-
+class RandomCrop:
     def __init__(self, output_size):
         self.output_size = output_size
 
@@ -58,21 +52,23 @@ class RandomCrop(object):
         image, label = sample['image'], sample['label']
 
         # pad the sample if necessary
-        if label.shape[0] <= self.output_size[0] or label.shape[1] <= self.output_size[1] or label.shape[2] <= \
-                self.output_size[2]:
+        if label.shape[0] < self.output_size[0] or label.shape[1] < self.output_size[1] or label.shape[2] < self.output_size[2]:
             pw = max((self.output_size[0] - label.shape[0]) // 2 + 3, 0)
             ph = max((self.output_size[1] - label.shape[1]) // 2 + 3, 0)
             pd = max((self.output_size[2] - label.shape[2]) // 2 + 3, 0)
             image = np.pad(image, [(pw, pw), (ph, ph), (pd, pd)], mode='constant', constant_values=0)
             label = np.pad(label, [(pw, pw), (ph, ph), (pd, pd)], mode='constant', constant_values=0)
 
-        (w, h, d) = image.shape
-        w1 = np.random.randint(0, w - self.output_size[0])
-        h1 = np.random.randint(0, h - self.output_size[1])
-        d1 = np.random.randint(0, d - self.output_size[2])
+        depth, height, width = image.shape
+        target_d, target_h, target_w = self.output_size
 
-        label = label[w1:w1 + self.output_size[0], h1:h1 + self.output_size[1], d1:d1 + self.output_size[2]]
-        image = image[w1:w1 + self.output_size[0], h1:h1 + self.output_size[1], d1:d1 + self.output_size[2]]
+        d_start = random.randint(0, depth - target_d)
+        h_start = random.randint(0, height - target_h)
+        w_start = random.randint(0, width - target_w)
+
+        image = image[d_start:d_start+target_d, h_start:h_start+target_h, w_start:w_start+target_w]
+        label = label[d_start:d_start+target_d, h_start:h_start+target_h, w_start:w_start+target_w]
+
         return {'image': image, 'label': label}
 
 
