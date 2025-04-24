@@ -63,7 +63,7 @@ class RandomNoise:
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
         noise = np.random.normal(0, 0.1, image.shape)
-        image += noise
+        image = (image + noise).copy()  # ensure no negative stride
         return {'image': image, 'label': label}
 
 class RandomRotFlip:
@@ -71,8 +71,8 @@ class RandomRotFlip:
         image, label = sample['image'], sample['label']
         axis = random.randint(0, 2)
         k = random.randint(0, 3)
-        image = np.rot90(image, k, axes=(axis, (axis+1)%3))
-        label = np.rot90(label, k, axes=(axis, (axis+1)%3))
+        image = np.rot90(image, k, axes=(axis, (axis+1)%3)).copy()
+        label = np.rot90(label, k, axes=(axis, (axis+1)%3)).copy()
         if random.random() > 0.5:
             flip_axis = random.randint(0, 2)
             image = np.flip(image, axis=flip_axis).copy()
@@ -82,6 +82,6 @@ class RandomRotFlip:
 class ToTensor:
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
-        image = torch.from_numpy(image).float().unsqueeze(0)
-        label = torch.from_numpy(label).long()
+        image = torch.from_numpy(image.copy()).float().unsqueeze(0)
+        label = torch.from_numpy(label.copy()).long()
         return {'image': image, 'label': label}
