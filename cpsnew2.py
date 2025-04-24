@@ -13,7 +13,7 @@ from dataset2 import LAHeart, RandomCrop, RandomNoise, RandomRotFlip, ToTensor
 
 # Improved Dice Loss
 def dice_loss(score, target, acc=0):
-    target = target.float()
+    target = target.long()  # Ensure target is int64 for scatter_
     score = F.softmax(score, dim=1)
     smooth = 1e-5
 
@@ -28,6 +28,7 @@ def dice_loss(score, target, acc=0):
     if acc == 1:
         return dice
     return 1 - dice
+
 
 
 # GPU Device
