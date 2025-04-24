@@ -16,13 +16,19 @@ def dice_loss(score, target, acc=0):
     target = target.float()
     score = F.softmax(score, dim=1)
     smooth = 1e-5
-    intersect = torch.sum(score[:, 1, ...] * target[:, 1, ...])
-    y_sum = torch.sum(target[:, 1, ...] * target[:, 1, ...])
-    z_sum = torch.sum(score[:, 1, ...] * score[:, 1, ...])
+
+    # One-hot encode target to match score dimensions
+    target_onehot = torch.zeros_like(score).scatter_(1, target.unsqueeze(1), 1)
+
+    intersect = torch.sum(score * target_onehot)
+    y_sum = torch.sum(target_onehot * target_onehot)
+    z_sum = torch.sum(score * score)
+
     dice = (2 * intersect + smooth) / (z_sum + y_sum + smooth)
     if acc == 1:
         return dice
     return 1 - dice
+
 
 # GPU Device
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
