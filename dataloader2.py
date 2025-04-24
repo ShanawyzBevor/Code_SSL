@@ -3,6 +3,7 @@ import pandas as pd
 import h5py
 import numpy as np
 import torch
+import random
 from torch.utils.data import Dataset
 
 class LAHeart(Dataset):
@@ -75,23 +76,19 @@ class RandomCrop(object):
         return {'image': image, 'label': label}
 
 
-class RandomRotFlip(object):
-    """
-    Crop randomly flip the dataset in a sample
-    Args:
-    output_size (int): Desired output size
-    """
-
+class RandomRotFlip:
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
-        k = np.random.randint(0, 4)
-        image = np.rot90(image, k)
-        label = np.rot90(label, k)
-        axis = np.random.randint(0, 2)
-        image = np.flip(image, axis=axis).copy()
-        label = np.flip(label, axis=axis).copy()
-
+        axis = random.randint(0, 2)
+        k = random.randint(0, 3)
+        image = np.rot90(image, k, axes=(axis, (axis+1)%3)).copy()
+        label = np.rot90(label, k, axes=(axis, (axis+1)%3)).copy()
+        if random.random() > 0.5:
+            flip_axis = random.randint(0, 2)
+            image = np.flip(image, axis=flip_axis).copy()
+            label = np.flip(label, axis=flip_axis).copy()
         return {'image': image, 'label': label}
+
 
 
 class RandomNoise(object):
@@ -106,12 +103,13 @@ class RandomNoise(object):
         image = image + noise
         return {'image': image, 'label': label}
 
-class ToTensor(object):
-    
+class ToTensor:
     def __call__(self, sample):
-        image = sample['image']
-        image = image.reshape(1, image.shape[0], image.shape[1], image.shape[2]).astype(np.float32)
-        return {'image': torch.from_numpy(image), 'label': torch.from_numpy(sample['label']).long()}
+        image, label = sample['image'], sample['label']
+        image = torch.from_numpy(image.copy()).float().unsqueeze(0)
+        label = torch.from_numpy(label.copy()).long()
+        return {'image': image, 'label': label}
+
 
 class CreateOnehotLabel(object):
     def __init__(self, num_classes=2):
