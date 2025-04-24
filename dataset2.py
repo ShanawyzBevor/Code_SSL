@@ -42,13 +42,22 @@ class LAHeart(torch.utils.data.Dataset):
 
 # Augmentation Classes:
 class RandomCrop:
-    def __init__(self, size):
-        self.size = size
+    def __init__(self, output_size):
+        self.output_size = output_size
 
     def __call__(self, sample):
         image, label = sample['image'], sample['label']
+
+        # pad the sample if necessary
+        if label.shape[0] < self.output_size[0] or label.shape[1] < self.output_size[1] or label.shape[2] < self.output_size[2]:
+            pw = max((self.output_size[0] - label.shape[0]) // 2 + 3, 0)
+            ph = max((self.output_size[1] - label.shape[1]) // 2 + 3, 0)
+            pd = max((self.output_size[2] - label.shape[2]) // 2 + 3, 0)
+            image = np.pad(image, [(pw, pw), (ph, ph), (pd, pd)], mode='constant', constant_values=0)
+            label = np.pad(label, [(pw, pw), (ph, ph), (pd, pd)], mode='constant', constant_values=0)
+
         depth, height, width = image.shape
-        target_d, target_h, target_w = self.size
+        target_d, target_h, target_w = self.output_size
 
         d_start = random.randint(0, depth - target_d)
         h_start = random.randint(0, height - target_h)
@@ -58,6 +67,7 @@ class RandomCrop:
         label = label[d_start:d_start+target_d, h_start:h_start+target_h, w_start:w_start+target_w]
 
         return {'image': image, 'label': label}
+
 
 class RandomNoise:
     def __call__(self, sample):
