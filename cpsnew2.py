@@ -9,7 +9,7 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 from model import VNet
-from dataset import LAHeart, RandomCrop, RandomNoise, RandomRotFlip, ToTensor
+from dataset2 import LAHeart, RandomCrop, RandomNoise, RandomRotFlip, ToTensor
 
 # Improved Dice Loss
 def dice_loss(score, target, acc=0):
