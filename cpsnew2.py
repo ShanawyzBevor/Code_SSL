@@ -127,14 +127,15 @@ for epoch in range(Max_epoch):
         writer.add_scalar("Dice Accuracy/Unlabelled", avg_unsup_dice, epoch)
 
         # ===== Print Both Labelled & Unlabelled Dice =====
-        print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Unlabelled Dice: {avg_unsup_dice:.4f}")
+        print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Unlabelled Dice: {avg_unsup_dice:.4f}, Loss: {avg_unsup_loss:.4f}")
 
     else:
         # ===== Print Only Labelled Dice Before Epoch 100 =====
-        print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}")
+        print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Loss: {avg_sup_loss:.4f}")
 
     scheduler_a.step()
     scheduler_b.step()
+
 
 
 
