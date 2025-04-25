@@ -78,6 +78,14 @@ os.makedirs("./images", exist_ok=True)  # To store images
 os.makedirs("./predictions", exist_ok=True)  # To store predictions
 os.makedirs("./labels", exist_ok=True)  # To store ground truth labels
 
+# Helper function to normalize images to [0, 255] range for saving
+def normalize_and_convert_to_image(slice_data):
+    # Normalize to [0, 1] range
+    slice_data = (slice_data - np.min(slice_data)) / (np.max(slice_data) - np.min(slice_data))
+    # Scale to [0, 255] and convert to uint8
+    slice_data = np.uint8(slice_data * 255)
+    return Image.fromarray(slice_data).convert('L')
+
 # Training Loop
 for epoch in range(Max_epoch):
     print(f'\nEpoch {epoch+1}/{Max_epoch}')
@@ -166,16 +174,14 @@ for epoch in range(Max_epoch):
                 label_slice = label3d[0][:, :, i * 20]
                 pred_slice = pred3d[0][:, :, i * 20]
 
-                # Save Image
-                img = Image.fromarray(np.int8(image_slice)).convert('L')
+                # Normalize and convert to images before saving
+                img = normalize_and_convert_to_image(image_slice)
                 img.save(f"./images/{epoch+1}_{i}.png")
 
-                # Save Ground Truth Label
-                label_img = Image.fromarray(np.int8(label_slice)).convert('L')
+                label_img = normalize_and_convert_to_image(label_slice)
                 label_img.save(f"./labels/{epoch+1}_{i}.png")
 
-                # Save Predicted Image
-                pred_img = Image.fromarray(np.int8(pred_slice)).convert('L')
+                pred_img = normalize_and_convert_to_image(pred_slice)
                 pred_img.save(f"./predictions/{epoch+1}_{i}.png")
 
     else:
