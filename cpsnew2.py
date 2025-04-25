@@ -96,27 +96,44 @@ for epoch in range(Max_epoch):
     scheduler_b.step()
 
     # Semi-Supervised with CPS after 100 Epoch
-    if epoch >= 100:
-        total_unsup_loss = 0.0
-        for batch_idx, sample in tqdm(enumerate(unlabelled_trainloader), total=len(unlabelled_trainloader)):
-            optimizer_a.zero_grad()
-            optimizer_b.zero_grad()
-            images = sample["image"].to(device)
-            outputs_a = model_a(images)
-            outputs_b = model_b(images)
+    # Semi-Supervised with CPS after 100 Epoch + Unlabelled Dice Calculation
+if epoch >= 100:
+    total_unsup_loss = 0.0
+    total_unsup_dice = 0.0
 
-            _, hardlabel_a = torch.max(outputs_a, dim=1)
-            _, hardlabel_b = torch.max(outputs_b, dim=1)
+    for batch_idx, sample in tqdm(enumerate(unlabelled_trainloader), total=len(unlabelled_trainloader)):
+        optimizer_a.zero_grad()
+        optimizer_b.zero_grad()
+        images = sample["image"].to(device)
+        labels = sample["label"].to(device)  # assuming pseudo labels or placeholders
 
-            cps_loss = 0.01 * (F.cross_entropy(outputs_a, hardlabel_b) + F.cross_entropy(outputs_b, hardlabel_a))
-            cps_loss.backward()
-            optimizer_a.step()
-            optimizer_b.step()
+        outputs_a = model_a(images)
+        outputs_b = model_b(images)
 
-            total_unsup_loss += cps_loss.item()
+        _, hardlabel_a = torch.max(outputs_a, dim=1)
+        _, hardlabel_b = torch.max(outputs_b, dim=1)
 
-        avg_unsup_loss = total_unsup_loss / len(unlabelled_trainloader)
-        writer.add_scalar("Unsupervised CPS Loss", avg_unsup_loss, epoch)
+        unsup_cps_loss = 0.01 * (F.cross_entropy(outputs_a, hardlabel_b) + F.cross_entropy(outputs_b, hardlabel_a))
+        unsup_cps_loss.backward()
+        optimizer_a.step()
+        optimizer_b.step()
+
+        # Dice on unlabelled data (using pseudo labels for evaluation)
+        dice_unsup = dice_loss(outputs_a, labels)
+        total_unsup_dice += (1 - dice_unsup.item())  # convert loss to dice value
+
+        total_unsup_loss += unsup_cps_loss.item()
+
+    avg_unsup_loss = total_unsup_loss / len(unlabelled_trainloader)
+    avg_unsup_dice = total_unsup_dice / len(unlabelled_trainloader)
+
+    print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Unlabelled Dice: {avg_unsup_dice:.4f}")
+    writer.add_scalar("Unsupervised CPS Loss", avg_unsup_loss, epoch)
+    writer.add_scalar("Dice Accuracy/Unlabelled", avg_unsup_dice, epoch)
+
+else:
+    print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}")
+
 
     # Save Model
     if (epoch + 1) % 20 == 0:
