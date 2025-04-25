@@ -54,6 +54,11 @@ scheduler_b = optim.lr_scheduler.CosineAnnealingLR(optimizer_b, T_max=Max_epoch)
 # TensorBoard
 writer = SummaryWriter()
 
+# Create directories for saving images
+os.makedirs("./images", exist_ok=True)  # To store images
+os.makedirs("./predictions", exist_ok=True)  # To store predictions
+os.makedirs("./labels", exist_ok=True)  # To store ground truth labels
+
 # Training Loop
 for epoch in range(Max_epoch):
     print(f'\nEpoch {epoch+1}/{Max_epoch}')
@@ -129,6 +134,31 @@ for epoch in range(Max_epoch):
         # ===== Print Both Labelled & Unlabelled Dice =====
         print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Unlabelled Dice: {avg_unsup_dice:.4f}, Loss: {avg_unsup_loss:.4f}")
 
+        # ===== Save Images (Original, Predicted, Ground Truth) Every 20 Epochs =====
+        if (epoch + 1) % 20 == 0:
+            # Convert images and labels to numpy arrays
+            image3d = images.detach().cpu().numpy()
+            label3d = labels.detach().cpu().numpy()
+            pred3d = hardlabel_a.detach().cpu().numpy()
+
+            # Save 2D slices as images (or save a 3D volume if you prefer)
+            for i in range(3):  # Save 3 slices (adjust as per your data)
+                image_slice = image3d[0][0][:, :, i * 20]
+                label_slice = label3d[0][:, :, i * 20]
+                pred_slice = pred3d[0][:, :, i * 20]
+
+                # Save Image
+                img = Image.fromarray(np.int8(image_slice)).convert('L')
+                img.save(f"./images/{epoch+1}_{i}.png")
+
+                # Save Ground Truth Label
+                label_img = Image.fromarray(np.int8(label_slice)).convert('L')
+                label_img.save(f"./labels/{epoch+1}_{i}.png")
+
+                # Save Predicted Image
+                pred_img = Image.fromarray(np.int8(pred_slice)).convert('L')
+                pred_img.save(f"./predictions/{epoch+1}_{i}.png")
+
     else:
         # ===== Print Only Labelled Dice Before Epoch 100 =====
         print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Loss: {avg_sup_loss:.4f}")
@@ -136,10 +166,7 @@ for epoch in range(Max_epoch):
     scheduler_a.step()
     scheduler_b.step()
 
-
-
-
-    # Save Model
+    # Save Model Checkpoints
     if (epoch + 1) % 20 == 0:
         print("Saving model checkpoint...")
         torch.save(model_a.state_dict(), f"model_a_epoch_{epoch+1}.pth")
