@@ -13,7 +13,10 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 from model import VNet
-from dataset2 import LAHeart, RandomCrop, RandomNoise, RandomRotFlip, ToTensor
+from dataset2 import LAHeart, RandomCrop, RandomNoise ,RandomRotFlip, ToTensor
+
+
+print("helloe world")
 
 # Dice Loss (Only for Supervised)
 def dice_loss(score, target):
