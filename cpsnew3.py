@@ -1,7 +1,3 @@
-import tensorflow as tf
-# Suppress TensorFlow warnings
-tf.get_logger().setLevel('ERROR')
-
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -13,10 +9,7 @@ from tqdm import tqdm
 import numpy as np
 from PIL import Image
 from model import VNet
-from dataset2 import LAHeart, RandomCrop, RandomNoise ,RandomRotFlip, ToTensor
-
-
-print("helloe world")
+from dataset2 import LAHeart, RandomCrop, RandomNoise, RandomRotFlip, ToTensor
 
 # Dice Loss (Only for Supervised)
 def dice_loss(score, target):
@@ -66,9 +59,8 @@ unlabelled_trainset = LAHeart(split='Training Set', label=False, transform=train
 # Get subset of labeled data based on percentage
 trainset_subset = get_labeled_data_percentage(trainset, label_percentage)
 
-# Modify the DataLoader with reduced worker processes (2 instead of 4)
-trainloader = torch.utils.data.DataLoader(trainset_subset, batch_size=batch_size, shuffle=True, num_workers=2)
-unlabelled_trainloader = torch.utils.data.DataLoader(unlabelled_trainset, batch_size=batch_size, shuffle=True, num_workers=2)
+trainloader = torch.utils.data.DataLoader(trainset_subset, batch_size=batch_size, shuffle=True, num_workers=4)
+unlabelled_trainloader = torch.utils.data.DataLoader(unlabelled_trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 
 # Optimizer & Scheduler
 Max_epoch = 800
@@ -89,32 +81,19 @@ os.makedirs("./labels", exist_ok=True)  # To store ground truth labels
 # Helper function to normalize images to [0, 255] range for saving
 def normalize_and_convert_to_image(slice_data):
     # Normalize to [0, 1] range
-    slice_data = (slice_data - np.min(slice_data)) / (np.max(slice_data) - np.min(slice_data))  # Normalize to 0-1 range
-    
+    slice_data = (slice_data - np.min(slice_data)) / (np.max(slice_data) - np.min(slice_data))
     # Scale to [0, 255] and convert to uint8
     slice_data = np.uint8(slice_data * 255)
-    
-    # Check min/max values after scaling
-    print(f"Normalized Min value: {np.min(slice_data)}, Max value: {np.max(slice_data)}")
-    
     return Image.fromarray(slice_data).convert('L')
 
-# Check if the data is being loaded correctly
-print(f"Training set size: {len(trainloader.dataset)}")
-print(f"Unlabelled set size: {len(unlabelled_trainloader.dataset)}")
-
-# Print the first batch to check data loading
-for batch_idx, sample in enumerate(trainloader):
-    print(f"Batch {batch_idx}: Image shape: {sample['image'].shape}")
-    break  # Just to check the first batch
-
-# Training loop
+# Training Loop
 for epoch in range(Max_epoch):
     print(f'\nEpoch {epoch+1}/{Max_epoch}')
     print('-' * 30)
     model_a.train()
     model_b.train()
 
+    # ===== Supervised (Labelled) Training =====
     total_sup_loss = 0.0
     total_dice = 0.0
 
@@ -142,14 +121,10 @@ for epoch in range(Max_epoch):
     avg_sup_loss = total_sup_loss / len(trainloader)
     avg_dice = total_dice / len(trainloader)
 
-    # Print out the metrics at the end of each epoch
-    print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Loss: {avg_sup_loss:.4f}")
-    sys.stdout.flush()
-
     writer.add_scalar("Supervised Loss", avg_sup_loss, epoch)
     writer.add_scalar("Dice Accuracy/Labelled", avg_dice, epoch)
 
-    # CPS for Unlabelled Data
+    # ===== Semi-Supervised (Unlabelled) Training with CPS =====
     if epoch >= 100:
         print(f"--- Starting CPS for Unlabelled Data at Epoch {epoch+1} ---")
         total_unsup_loss = 0.0
@@ -172,6 +147,7 @@ for epoch in range(Max_epoch):
             optimizer_a.step()
             optimizer_b.step()
 
+            # Dice on unlabelled data
             dice_unsup = dice_loss(outputs_a, labels)
             total_unsup_dice += (1 - dice_unsup.item())
             total_unsup_loss += unsup_cps_loss.item()
@@ -179,16 +155,43 @@ for epoch in range(Max_epoch):
         avg_unsup_loss = total_unsup_loss / len(unlabelled_trainloader)
         avg_unsup_dice = total_unsup_dice / len(unlabelled_trainloader)
 
-        # Print out the metrics for unlabelled data
-        print(f"Epoch {epoch+1}, Unlabelled Dice: {avg_unsup_dice:.4f}, Unlabelled Loss: {avg_unsup_loss:.4f}")
-        sys.stdout.flush()
-
         writer.add_scalar("Unsupervised CPS Loss", avg_unsup_loss, epoch)
         writer.add_scalar("Dice Accuracy/Unlabelled", avg_unsup_dice, epoch)
+
+        # ===== Print Both Labelled & Unlabelled Dice =====
+        print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Unlabelled Dice: {avg_unsup_dice:.4f}, Loss: {avg_unsup_loss:.4f}")
+
+        # ===== Save Images (Original, Predicted, Ground Truth) Every 20 Epochs =====
+        if (epoch + 1) % 20 == 0:
+            # Convert images and labels to numpy arrays
+            image3d = images.detach().cpu().numpy()
+            label3d = labels.detach().cpu().numpy()
+            pred3d = hardlabel_a.detach().cpu().numpy()
+
+            # Save 2D slices as images (or save a 3D volume if you prefer)
+            for i in range(3):  # Save 3 slices (adjust as per your data)
+                image_slice = image3d[0][0][:, :, i * 20]
+                label_slice = label3d[0][:, :, i * 20]
+                pred_slice = pred3d[0][:, :, i * 20]
+
+                # Normalize and convert to images before saving
+                img = normalize_and_convert_to_image(image_slice)
+                img.save(f"./images/{epoch+1}_{i}.png")
+
+                label_img = normalize_and_convert_to_image(label_slice)
+                label_img.save(f"./labels/{epoch+1}_{i}.png")
+
+                pred_img = normalize_and_convert_to_image(pred_slice)
+                pred_img.save(f"./predictions/{epoch+1}_{i}.png")
+
+    else:
+        # ===== Print Only Labelled Dice Before Epoch 100 =====
+        print(f"Epoch {epoch+1}, Labelled Dice: {avg_dice:.4f}, Loss: {avg_sup_loss:.4f}")
 
     scheduler_a.step()
     scheduler_b.step()
 
+    # Save Model Checkpoints
     if (epoch + 1) % 20 == 0:
         print("Saving model checkpoint...")
         torch.save(model_a.state_dict(), f"model_a_epoch_{epoch+1}.pth")
