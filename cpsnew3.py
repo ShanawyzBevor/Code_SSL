@@ -23,7 +23,7 @@ def dice_loss(score, target):
     dice = (2 * intersect + smooth) / (z_sum + y_sum + smooth)
     return 1 - dice  # loss
 
-# Device
+# Device setup
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Function to load subset of labeled data based on the percentage
@@ -40,11 +40,10 @@ def get_labeled_data_percentage(dataset, label_percentage=1.0):
 model_a = VNet(n_channels=1, n_classes=2, normalization='batchnorm', has_dropout=True).to(device)
 model_b = VNet(n_channels=1, n_classes=2, normalization='batchnorm', has_dropout=True).to(device)
 
-# DataLoader
+# DataLoader setup
 batch_size = 4
 label_percentage = 0.2  # Change this to control the amount of labeled data (0.5 for 50%, 1.0 for 100%, etc.)
 
-# Apply the function to get the desired labeled data subset
 train_transform = transforms.Compose([
     RandomRotFlip(),
     RandomNoise(),
@@ -52,17 +51,15 @@ train_transform = transforms.Compose([
     ToTensor(),
 ])
 
-# Load training and unlabelled datasets
 trainset = LAHeart(split='Training Set', label=True, transform=train_transform)
 unlabelled_trainset = LAHeart(split='Training Set', label=False, transform=train_transform)
 
-# Get subset of labeled data based on percentage
 trainset_subset = get_labeled_data_percentage(trainset, label_percentage)
 
 trainloader = torch.utils.data.DataLoader(trainset_subset, batch_size=batch_size, shuffle=True, num_workers=4)
 unlabelled_trainloader = torch.utils.data.DataLoader(unlabelled_trainset, batch_size=batch_size, shuffle=True, num_workers=4)
 
-# Optimizer & Scheduler
+# Optimizer & Scheduler setup
 Max_epoch = 800
 learn_rate = 0.0005
 optimizer_a = optim.AdamW(model_a.parameters(), lr=learn_rate, weight_decay=1e-4)
@@ -70,18 +67,26 @@ optimizer_b = optim.AdamW(model_b.parameters(), lr=learn_rate, weight_decay=1e-4
 scheduler_a = optim.lr_scheduler.CosineAnnealingLR(optimizer_a, T_max=Max_epoch)
 scheduler_b = optim.lr_scheduler.CosineAnnealingLR(optimizer_b, T_max=Max_epoch)
 
-# TensorBoard
+# TensorBoard setup
 writer = SummaryWriter()
 
 # Create directories for saving images
-os.makedirs("./images", exist_ok=True)  # To store images
-os.makedirs("./predictions", exist_ok=True)  # To store predictions
-os.makedirs("./labels", exist_ok=True)  # To store ground truth labels
+os.makedirs("./images", exist_ok=True)
+os.makedirs("./predictions", exist_ok=True)
+os.makedirs("./labels", exist_ok=True)
 
-# Helper function to normalize images to [0, 255] range for saving
+# Helper function to normalize images for saving
 def normalize_and_convert_to_image(slice_data):
-    # Normalize to [0, 1] range
-    slice_data = (slice_data - np.min(slice_data)) / (np.max(slice_data) - np.min(slice_data))
+    min_val = np.min(slice_data)
+    max_val = np.max(slice_data)
+
+    # Avoid division by zero if max and min are the same
+    if max_val == min_val:
+        slice_data = np.zeros_like(slice_data)  # If all pixels are the same, set to black
+    else:
+        # Normalize to [0, 1] range
+        slice_data = (slice_data - min_val) / (max_val - min_val)
+
     # Scale to [0, 255] and convert to uint8
     slice_data = np.uint8(slice_data * 255)
     return Image.fromarray(slice_data).convert('L')
@@ -169,20 +174,26 @@ for epoch in range(Max_epoch):
             pred3d = hardlabel_a.detach().cpu().numpy()
 
             # Save 2D slices as images (or save a 3D volume if you prefer)
+            num_slices = image3d.shape[2]  # Get the total number of slices in Z-dimension
+            slice_step = num_slices // 3  # Divide into 3 slices to save
+
             for i in range(3):  # Save 3 slices (adjust as per your data)
-                image_slice = image3d[0][0][:, :, i * 20]
-                label_slice = label3d[0][:, :, i * 20]
-                pred_slice = pred3d[0][:, :, i * 20]
+                slice_idx = i * slice_step
+                if slice_idx < num_slices:
+                    # Ensure slicing is within bounds
+                    image_slice = image3d[0][0][:, :, slice_idx]
+                    label_slice = label3d[0][:, :, slice_idx]
+                    pred_slice = pred3d[0][:, :, slice_idx]
 
-                # Normalize and convert to images before saving
-                img = normalize_and_convert_to_image(image_slice)
-                img.save(f"./images/{epoch+1}_{i}.png")
+                    # Normalize and convert to images before saving
+                    img = normalize_and_convert_to_image(image_slice)
+                    img.save(f"./images/{epoch+1}_{i}.png")
 
-                label_img = normalize_and_convert_to_image(label_slice)
-                label_img.save(f"./labels/{epoch+1}_{i}.png")
+                    label_img = normalize_and_convert_to_image(label_slice)
+                    label_img.save(f"./labels/{epoch+1}_{i}.png")
 
-                pred_img = normalize_and_convert_to_image(pred_slice)
-                pred_img.save(f"./predictions/{epoch+1}_{i}.png")
+                    pred_img = normalize_and_convert_to_image(pred_slice)
+                    pred_img.save(f"./predictions/{epoch+1}_{i}.png")
 
     else:
         # ===== Print Only Labelled Dice Before Epoch 100 =====
