@@ -42,7 +42,7 @@ model_b = VNet(n_channels=1, n_classes=2, normalization='batchnorm', has_dropout
 
 # DataLoader setup
 batch_size = 4
-label_percentage = 0.16  # Change this to control the amount of labeled data (0.5 for 50%, 1.0 for 100%, etc.)
+label_percentage = 0.8  # Change this to control the amount of labeled data (0.5 for 50%, 1.0 for 100%, etc.)
 
 train_transform = transforms.Compose([
     RandomRotFlip(),
